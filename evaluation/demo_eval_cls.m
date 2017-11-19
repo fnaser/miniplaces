@@ -6,9 +6,9 @@ fprintf('MINI PLACES SCENE CLASSIFICATION CHALLENGE\n');
 
 close all, clear all, clc;
 
-%pred_file='demo.val.pred.txt';
+pred_file='demo.val.pred.txt';
 %pred_file='alexnet-3100-val.txt';
-pred_file='alexnet-5000-val.txt';
+%pred_file='alexnet-5000-val.txt';
 
 ground_truth_file='../data/val.txt';
 num_predictions_per_image=5;

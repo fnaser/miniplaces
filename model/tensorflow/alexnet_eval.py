@@ -91,6 +91,17 @@ opt_data_val = {
     }
 loader_val = DataLoaderDisk(**opt_data_val)
 
+opt_data_test = {
+    #'data_h5': 'miniplaces_256_val.h5',
+    'data_root': '../../data/images/',   # MODIFY PATH ACCORDINGLY
+    'data_list': '../../data/test.txt',   # MODIFY PATH ACCORDINGLY
+    'load_size': load_size,
+    'fine_size': fine_size,
+    'data_mean': data_mean,
+    'randomize': False
+    }
+loader_test = DataLoaderDisk(**opt_data_test)
+
 # tf Graph input
 x = tf.placeholder(tf.float32, [None, fine_size, fine_size, c])
 y = tf.placeholder(tf.int64, None)
@@ -136,6 +147,8 @@ with tf.Session() as sess:
                 res_str += " " + str(t[0][j])
                 
         val_txt.write(res_str + '\n')
+
+        #print("test/" + str(i+1).zfill(8) + ".jpg " + " ".join(str(x) for x in t5[0].indices[0]))
         
         if i % 500 == 0:        
             print(labels_batch)

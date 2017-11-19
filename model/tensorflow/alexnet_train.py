@@ -13,11 +13,12 @@ data_mean = np.asarray([0.45834960097,0.44674252445,0.41352266842])
 # Training Parameters
 learning_rate = 0.001
 dropout = 0.5 # Dropout, probability to keep units
-training_iters = 5000 #100000
+training_iters = 100000
 step_display = 50
-step_save = 50 #10000
+step_save = 100 #10000 #TODO
 path_save = './alexnet/alexnet'
 start_from = ''
+logs_path = path_save + '/logs/'
 
 def alexnet(x, keep_dropout):
     weights = {
@@ -119,16 +120,26 @@ keep_dropout = tf.placeholder(tf.float32)
 logits = alexnet(x, keep_dropout)
 
 # Define loss and optimizer
-loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits))
-train_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+with tf.name_scope('Loss'):
+    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits))
+with tf.name_scope('SGD'):
+    train_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
 # Evaluate model
 _, top5 = tf.nn.top_k(logits,k=5)
-accuracy1 = tf.reduce_mean(tf.cast(tf.nn.in_top_k(logits, y, 1), tf.float32))
-accuracy5 = tf.reduce_mean(tf.cast(tf.nn.in_top_k(logits, y, 5), tf.float32))
+with tf.name_scope('Accuracy1'):
+    accuracy1 = tf.reduce_mean(tf.cast(tf.nn.in_top_k(logits, y, 1), tf.float32))
+with tf.name_scope('Accuracy5'):
+    accuracy5 = tf.reduce_mean(tf.cast(tf.nn.in_top_k(logits, y, 5), tf.float32))
 
 # define initialization
 init = tf.global_variables_initializer()
+
+# TensorBoard
+tf.summary.scalar("loss", loss)
+tf.summary.scalar("accuracy1", accuracy1)
+tf.summary.scalar("accuracy5", accuracy5)
+merged_summary_op = tf.summary.merge_all()
 
 # define saver
 saver = tf.train.Saver()
@@ -145,6 +156,7 @@ with tf.Session() as sess:
         sess.run(init)
     
     step = 0
+    summary_writer = tf.summary.FileWriter(logs_path, graph=tf.get_default_graph())
 
     while step < training_iters:
         # Load a batch of training data
@@ -169,7 +181,8 @@ with tf.Session() as sess:
                   "{:.2f}".format(acc5))
         
         # Run optimization op (backprop)
-        sess.run(train_optimizer, feed_dict={x: images_batch, y: labels_batch, keep_dropout: dropout})
+        _, summary = sess.run([train_optimizer, merged_summary_op], feed_dict={x: images_batch, y: labels_batch, keep_dropout: dropout})
+        summary_writer.add_summary(summary, step)
         
         step += 1
         
