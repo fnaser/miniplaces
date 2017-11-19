@@ -87,11 +87,13 @@ class DataLoaderDisk(object):
         self.list_lab = np.array(self.list_lab, np.int64)
         self.num = self.list_im.shape[0]
         print('# Images found:', self.num)
+        print(self.list_im)
 
         # permutation
-        perm = np.random.permutation(self.num) 
-        self.list_im[:, ...] = self.list_im[perm, ...]
-        self.list_lab[:] = self.list_lab[perm, ...]
+        if self.randomize:
+            perm = np.random.permutation(self.num) 
+            self.list_im[:, ...] = self.list_im[perm, ...]
+            self.list_lab[:] = self.list_lab[perm, ...]
 
         self._idx = 0
         
@@ -120,10 +122,39 @@ class DataLoaderDisk(object):
             if self._idx == self.num:
                 self._idx = 0
         
-        return images_batch, labels_batch
+        return images_batch, labels_batch, self.list_im[self._idx]
     
     def size(self):
         return self.num
 
     def reset(self):
         self._idx = 0
+        
+    def index(self):
+        return self._idx
+
+    def getBatch(self, batch):        
+        return self.list_im[batch], self.list_lab[batch]
+    
+    def next_batch_eval(self, batch_size, batch_i):
+        images_batch = np.zeros((batch_size, self.fine_size, self.fine_size, 3)) 
+        labels_batch = np.zeros(batch_size)
+        for i in range(batch_size):
+            image = scipy.misc.imread(self.list_im[batch_i])
+            image = scipy.misc.imresize(image, (self.load_size, self.load_size))
+            image = image.astype(np.float32)/255.
+            image = image - self.data_mean
+            if self.randomize:
+                flip = np.random.random_integers(0, 1)
+                if flip>0:
+                    image = image[:,::-1,:]
+                offset_h = np.random.random_integers(0, self.load_size-self.fine_size)
+                offset_w = np.random.random_integers(0, self.load_size-self.fine_size)
+            else:
+                offset_h = (self.load_size-self.fine_size)//2
+                offset_w = (self.load_size-self.fine_size)//2
+
+            images_batch[i, ...] =  image[offset_h:offset_h+self.fine_size, offset_w:offset_w+self.fine_size, :]
+            labels_batch[i, ...] = self.list_lab[batch_i]
+        
+        return images_batch, labels_batch, self.list_im[batch_i]
