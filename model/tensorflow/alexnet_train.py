@@ -16,10 +16,13 @@ dropout = 0.5 # Dropout, probability to keep units
 training_iters = 100000
 step_display = 50
 step_save = 100 #10000 #TODO
-root = '/home/fnaser/DropboxMIT/Miniplaces/alexnet-10000-default-TensorBoard/'
+start_step = 9900
+#root = '/home/fnaser/DropboxMIT/Miniplaces/alexnet-10000-default-TensorBoard/'
+root = './'
 path_save = root + 'alexnet/alexnet'
-start_from = path_save + '-10200'
+start_from = path_save + '-' + str(start_step)
 logs_path = path_save + '/logs/'
+start_eval = False
 
 print(path_save)
 print(start_from)
@@ -168,36 +171,40 @@ with tf.Session() as sess:
     # Initialization
     if len(start_from)>1:
         #TODO either restore to train or eval
-        print('Restore session')
+        print('Restore session.')
         saver.restore(sess, start_from)
 
-        batch_size = 1
-        num_batch = loader_test.size() // batch_size
-        loader_test.reset()
+        if start_eval:
+            print('Start Eval.')
+            batch_size = 1
+            num_batch = loader_test.size() // batch_size
+            loader_test.reset()
+        
+            for i in range(0,num_batch):
+            
+                images_batch, labels_batch, file_name = loader_test.next_batch_eval(batch_size, i)
+                t5 = sess.run([top5], feed_dict={x: images_batch, y: labels_batch, keep_dropout: 1.})
+            
+                res_str = file_name[18:] + ""
+                for t in t5:
+                    for j in range(0,5):
+                        res_str += " " + str(t[0][j])
+                    
+                    val_txt.write(res_str + '\n')
+            
+                if i % 500 == 0:        
+                    print(res_str)
     
-        for i in range(0,num_batch):
-        
-            images_batch, labels_batch, file_name = loader_test.next_batch_eval(batch_size, i)
-            t5 = sess.run([top5], feed_dict={x: images_batch, y: labels_batch, keep_dropout: 1.})
-        
-            res_str = file_name[18:] + ""
-            for t in t5:
-                for j in range(0,5):
-                    res_str += " " + str(t[0][j])
-                
-                val_txt.write(res_str + '\n')
-        
-            if i % 500 == 0:        
-                print(res_str)
+            val_txt.close()
+            print("Done")
+            sys.exit()
+        else:
+            step = start_step
+            print('Restored Session.')
 
-        val_txt.close()
-        print("Done")
-        sys.exit()
-        
     else:
         sess.run(init)
-    
-    step = 0
+        step = 0
     summary_writer = tf.summary.FileWriter(logs_path, graph=tf.get_default_graph())
 
     while step < training_iters:
