@@ -152,6 +152,7 @@ with tf.Session() as sess:
     # Initialization
     if len(start_from)>1:
         saver.restore(sess, start_from)
+        #TODO
     else:
         sess.run(init)
     

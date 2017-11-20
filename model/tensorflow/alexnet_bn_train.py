@@ -5,7 +5,7 @@ from tensorflow.contrib.layers.python.layers import batch_norm
 from DataLoader import *
 
 # Dataset Parameters
-batch_size = 256
+batch_size = 200 #250
 load_size = 256
 fine_size = 224
 c = 3
@@ -16,9 +16,10 @@ learning_rate = 0.001
 dropout = 0.5 # Dropout, probability to keep units
 training_iters = 50000
 step_display = 50
-step_save = 10000
-path_save = 'alexnet_bn'
+step_save = 1000
+path_save = './alexnet_bn/alexnet_bn'
 start_from = ''
+logs_path = path_save + '/logs/'
 
 def batch_norm_layer(x, train_phase, scope_bn):
     return batch_norm(x, decay=0.9, center=True, scale=True,
@@ -126,15 +127,26 @@ train_phase = tf.placeholder(tf.bool)
 logits = alexnet(x, keep_dropout, train_phase)
 
 # Define loss and optimizer
-loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits))
-train_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+with tf.name_scope('Loss'):
+    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits))
+with tf.name_scope('SGD'):
+    train_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
 # Evaluate model
-accuracy1 = tf.reduce_mean(tf.cast(tf.nn.in_top_k(logits, y, 1), tf.float32))
-accuracy5 = tf.reduce_mean(tf.cast(tf.nn.in_top_k(logits, y, 5), tf.float32))
+_, top5 = tf.nn.top_k(logits,k=5)
+with tf.name_scope('Accuracy1'):
+    accuracy1 = tf.reduce_mean(tf.cast(tf.nn.in_top_k(logits, y, 1), tf.float32))
+with tf.name_scope('Accuracy5'):
+    accuracy5 = tf.reduce_mean(tf.cast(tf.nn.in_top_k(logits, y, 5), tf.float32))
 
 # define initialization
 init = tf.global_variables_initializer()
+
+# TensorBoard
+tf.summary.scalar("loss", loss)
+tf.summary.scalar("accuracy1", accuracy1)
+tf.summary.scalar("accuracy5", accuracy5)
+merged_summary_op = tf.summary.merge_all()
 
 # define saver
 saver = tf.train.Saver()
@@ -147,14 +159,16 @@ with tf.Session() as sess:
     # Initialization
     if len(start_from)>1:
         saver.restore(sess, start_from)
+        #TODO
     else:
         sess.run(init)
     
     step = 0
+    summary_writer = tf.summary.FileWriter(logs_path, graph=tf.get_default_graph())
 
     while step < training_iters:
         # Load a batch of training data
-        images_batch, labels_batch = loader_train.next_batch(batch_size)
+        images_batch, labels_batch, _ = loader_train.next_batch(batch_size)
         
         if step % step_display == 0:
             print('[%s]:' %(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
@@ -167,7 +181,7 @@ with tf.Session() as sess:
                   "{:.4f}".format(acc5))
 
             # Calculate batch loss and accuracy on validation set
-            images_batch_val, labels_batch_val = loader_val.next_batch(batch_size)    
+            images_batch_val, labels_batch_val, _ = loader_val.next_batch(batch_size)    
             l, acc1, acc5 = sess.run([loss, accuracy1, accuracy5], feed_dict={x: images_batch_val, y: labels_batch_val, keep_dropout: 1., train_phase: False}) 
             print("-Iter " + str(step) + ", Validation Loss= " + \
                   "{:.6f}".format(l) + ", Accuracy Top1 = " + \
@@ -175,7 +189,8 @@ with tf.Session() as sess:
                   "{:.4f}".format(acc5))
         
         # Run optimization op (backprop)
-        sess.run(train_optimizer, feed_dict={x: images_batch, y: labels_batch, keep_dropout: dropout, train_phase: True})
+        _, summary = sess.run([train_optimizer, merged_summary_op], feed_dict={x: images_batch, y: labels_batch, keep_dropout: dropout, train_phase: False})
+        summary_writer.add_summary(summary, step)
         
         step += 1
         
@@ -194,7 +209,7 @@ with tf.Session() as sess:
     acc5_total = 0.
     loader_val.reset()
     for i in range(num_batch):
-        images_batch, labels_batch = loader_val.next_batch(batch_size)    
+        images_batch, labels_batch, _ = loader_val.next_batch(batch_size)    
         acc1, acc5 = sess.run([accuracy1, accuracy5], feed_dict={x: images_batch, y: labels_batch, keep_dropout: 1., train_phase: False})
         acc1_total += acc1
         acc5_total += acc5
