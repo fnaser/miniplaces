@@ -1,4 +1,4 @@
-import os, datetime
+import sys, os, datetime
 import numpy as np
 import tensorflow as tf
 from DataLoader import *
@@ -16,9 +16,14 @@ dropout = 0.5 # Dropout, probability to keep units
 training_iters = 100000
 step_display = 50
 step_save = 100 #10000 #TODO
-path_save = './alexnet/alexnet'
-start_from = ''
+root = '/home/fnaser/DropboxMIT/Miniplaces/alexnet-10000-default-TensorBoard/'
+path_save = root + 'alexnet/alexnet'
+start_from = path_save + '-10200'
 logs_path = path_save + '/logs/'
+
+print(path_save)
+print(start_from)
+#sys.exit()
 
 def alexnet(x, keep_dropout):
     weights = {
@@ -105,7 +110,16 @@ opt_data_val = {
     'data_mean': data_mean,
     'randomize': False
     }
-
+opt_data_test = {
+    #'data_h5': 'miniplaces_256_val.h5',
+    'data_root': '../../data/images/',   # MODIFY PATH ACCORDINGLY
+    'data_list': '../../data/test.txt',   # MODIFY PATH ACCORDINGLY
+    'load_size': load_size,
+    'fine_size': fine_size,
+    'data_mean': data_mean,
+    'randomize': False
+    }
+loader_test = DataLoaderDisk(**opt_data_test)
 loader_train = DataLoaderDisk(**opt_data_train)
 loader_val = DataLoaderDisk(**opt_data_val)
 #loader_train = DataLoaderH5(**opt_data_train)
@@ -147,12 +161,39 @@ saver = tf.train.Saver()
 # define summary writer
 #writer = tf.train.SummaryWriter('.', graph=tf.get_default_graph())
 
+val_txt = open(start_from + "-test.txt", "w")
+
 # Launch the graph
 with tf.Session() as sess:
     # Initialization
     if len(start_from)>1:
+        #TODO either restore to train or eval
+        print('Restore session')
         saver.restore(sess, start_from)
-        #TODO
+
+        batch_size = 1
+        num_batch = loader_test.size() // batch_size
+        loader_test.reset()
+    
+        for i in range(0,num_batch):
+        
+            images_batch, labels_batch, file_name = loader_test.next_batch_eval(batch_size, i)
+            t5 = sess.run([top5], feed_dict={x: images_batch, y: labels_batch, keep_dropout: 1.})
+        
+            res_str = file_name[18:] + ""
+            for t in t5:
+                for j in range(0,5):
+                    res_str += " " + str(t[0][j])
+                
+                val_txt.write(res_str + '\n')
+        
+            if i % 500 == 0:        
+                print(res_str)
+
+        val_txt.close()
+        print("Done")
+        sys.exit()
+        
     else:
         sess.run(init)
     

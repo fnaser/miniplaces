@@ -9,7 +9,7 @@ close all, clear all, clc;
 %pred_file='demo.val.pred.txt';
 %pred_file='alexnet-3100-val.txt';
 %pred_file='alexnet-5000-val.txt';
-pred_file ='alexnet-7400-val.txt';
+pred_file ='alexnet_bn-100-test.txt';
 
 %ground_truth_file='../data/val.txt';
 ground_truth_file='../data/test.txt';
