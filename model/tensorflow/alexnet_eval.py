@@ -11,7 +11,7 @@ data_mean = np.asarray([0.45834960097,0.44674252445,0.41352266842])
 
 # Training Parameters
 path_save = './alexnet/alexnet'
-start_from = path_save + '-5000' #'-30'
+start_from = path_save + '-7400' #'-30'
 
 def alexnet(x, keep_dropout):
     weights = {
@@ -132,12 +132,12 @@ with tf.Session() as sess:
 
     # Evaluate on the whole validation set
     print('Evaluation on the whole validation set...')
-    num_batch = loader_val.size() // batch_size
-    loader_val.reset()
+    num_batch = loader_test.size() // batch_size
+    loader_test.reset()
     
     for i in range(0,num_batch):
         
-        images_batch, labels_batch, file_name = loader_val.next_batch_eval(batch_size, i)
+        images_batch, labels_batch, file_name = loader_test.next_batch_eval(batch_size, i)
         t5 = sess.run([top5], feed_dict={x: images_batch, y: labels_batch, keep_dropout: 1.})
         
         #val/00000001.jpg 81 90 12 91 63
