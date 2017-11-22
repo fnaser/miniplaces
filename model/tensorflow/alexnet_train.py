@@ -11,18 +11,24 @@ c = 3
 data_mean = np.asarray([0.45834960097,0.44674252445,0.41352266842])
 
 # Training Parameters
+_NUM_IMAGES = {
+    'train': 100000,
+    'validation': 10000,
+    'test': 10000
+}
 learning_rate = 0.001
 dropout = 0.5 # Dropout, probability to keep units
 training_iters = 100000
 step_display = 50
 step_save = 100 #10000 #TODO
-start_step = 9900
+start_step = 11800
 #root = '/home/fnaser/DropboxMIT/Miniplaces/alexnet-10000-default-TensorBoard/'
 root = './'
 path_save = root + 'alexnet/alexnet'
 start_from = path_save + '-' + str(start_step)
 logs_path = path_save + '/logs/'
-start_eval = False
+start_eval = True
+batch_evaluation = 25
 
 print(path_save)
 print(start_from)
@@ -166,6 +172,19 @@ saver = tf.train.Saver()
 
 val_txt = open(start_from + "-test.txt", "w")
 
+def inference(sess, batch_size, loader):
+    images_batch, labels_batch, _ = loader.next_batch(batch_size)
+    
+    l, acc1, acc5, summary = sess.run([loss, accuracy1, accuracy5, merged_summary_op],
+                             feed_dict={x: images_batch, y: labels_batch, keep_dropout: 1.})
+
+    print("Loss= " + \
+          "{:.6f}".format(l) + ", Accuracy Top1 = " + \
+          "{:.4f}".format(acc1) + ", Top5 = " + \
+          "{:.4f}".format(acc5))
+
+    return l, acc1, acc5
+
 # Launch the graph
 with tf.Session() as sess:
     # Initialization
@@ -173,6 +192,47 @@ with tf.Session() as sess:
         #TODO either restore to train or eval
         print('Restore session.')
         saver.restore(sess, start_from)
+        
+        # Evaluate on the whole validation set
+        print('*****************************************')
+        print('\nEvaluation on the whole validation set on the last model:')
+        loader_val.reset()
+        iterations = _NUM_IMAGES['validation']//batch_evaluation
+        l_total, acc1_total, acc5_total = 0.0, 0.0, 0.0
+        for i in range(iterations):
+            l, acc1, acc5 = inference(sess,batch_evaluation, loader_val)
+            l_total += l
+            acc1_total += acc1
+            acc5_total += acc5
+        acc1_total /= iterations
+        acc5_total /= iterations
+        print('*****************************************')
+        print('RESULT FOR VALIDATION SET')
+        print("Loss= " +
+              "{:.6f}".format(l_total) + ", Accuracy Top1 = " +
+              "{:.4f}".format(acc1_total) + ", Top5 = " +
+              "{:.4f}".format(acc5_total))
+
+        # Evaluate on the whole training set
+        print('*****************************************')
+        print('\nEvaluation on the whole validation set on the last model:')
+        loader_val.reset()
+        iterations = _NUM_IMAGES['train']//batch_evaluation
+        l_total, acc1_total, acc5_total = 0.0, 0.0, 0.0
+        for i in range(iterations):
+            l, acc1, acc5 = inference(sess,batch_evaluation, loader_train)
+            l_total += l
+            acc1_total += acc1
+            acc5_total += acc5
+        acc1_total /= iterations
+        acc5_total /= iterations
+        print('*****************************************')
+        print('RESULT FOR TRAINING SET')
+        print("Loss= " +
+              "{:.6f}".format(l_total) + ", Accuracy Top1 = " +
+              "{:.4f}".format(acc1_total) + ", Top5 = " +
+              "{:.4f}".format(acc5_total))
+        print('*****************************************')
 
         if start_eval:
             print('Start Eval.')
